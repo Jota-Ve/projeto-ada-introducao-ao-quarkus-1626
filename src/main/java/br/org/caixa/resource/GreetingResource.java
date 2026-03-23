@@ -1,4 +1,4 @@
-package org.caixa;
+package br.org.caixa.resource;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
