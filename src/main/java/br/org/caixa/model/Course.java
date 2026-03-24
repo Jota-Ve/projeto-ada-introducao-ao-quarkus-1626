@@ -27,6 +27,10 @@ public class Course extends PanacheEntity {
         this.name = name;
     }
 
+    public Long getId() {
+        return id;
+    }
+
     public String getName() {
         return name;
     }
