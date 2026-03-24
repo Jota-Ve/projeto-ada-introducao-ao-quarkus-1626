@@ -12,11 +12,28 @@ import br.org.caixa.model.Course;
 import br.org.caixa.model.Lesson;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-@Path("/universities/{universityId}/courses")
+@Path("/universities")
 public class UniversityResource {
+    public Optional<Course> findCourse(Long universityId, Long courseId){
+        Optional<University> possibleUniversity = University.findByIdOptional(universityId);
+        if (possibleUniversity.isEmpty()) {
+            Log.info("University with ID " + universityId + " not found");
+            return Optional.empty();
+        }
+
+        Optional<Course> possibleCourse = Course.findByIdOptional(courseId);
+        if (possibleCourse.isEmpty()) {
+            Log.info("Course with ID " + courseId + " not found");
+            return Optional.empty();
+        }
+
+        return possibleCourse;
+    }
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -48,6 +65,7 @@ public class UniversityResource {
     }
 
     @POST
+    @Path("/{universityId}/courses")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
@@ -67,7 +85,7 @@ public class UniversityResource {
 
         URI location = URI.create("/universities/" + universityId + "/courses/" + course.id);
 
-        CourseResponse payload = new CourseResponse(course.id, course.getName(), List.of());
+        CourseResponse payload = new CourseResponse(universityId, course.id, course.getName(), List.of());
 
         return Response.created(location)
                 .header("Content-Type", "application/json")
@@ -77,51 +95,47 @@ public class UniversityResource {
     }
 
     @PUT
-    @Path("/{id}")
+    @Path("/{universityId}/courses/{id}")
     @Transactional
-    public Response updateCourse(@PathParam("id") Long id, @Valid CreateCourseRequest request) {
-        Log.info("Updating Course with ID " + id);
+    public Response updateCourse(@PathParam("universityId") Long universityId, @PathParam("id") Long courseId, @Valid CreateCourseRequest request) {
+        Log.info("Updating University(ID=" + universityId + ") with Course(ID=" + courseId + ")");
 
-        Optional<Course> possibleCourse = Course.findByIdOptional(id);
-
-        if (possibleCourse.isEmpty()) {
-            Log.info("Course with ID " + id + " not found");
+        Optional<Course> possibleCourse = findCourse(universityId, courseId);
+        if (possibleCourse.isEmpty())
             return Response.status(Response.Status.NOT_FOUND).build(); // early-return
-        }
 
         Course course = possibleCourse.get();
-
         course.changeName(request.name());
+        Log.info("Course(ID=" + courseId + ") in University(ID=" + universityId + " Updated");
 
-        Log.info("Course updated " + course);
-
-        return Response.ok(new CourseResponse(course.id, course.getName(), List.of())).build();
+        return Response.ok(new CourseResponse(universityId, course.id, course.getName(), List.of())).build();
     }
 
     @DELETE
-    @Path("/{id}")
+    @Path("/{universityId}/courses/{id}")
     @Transactional
-    public Response deleteCourse(@PathParam("id") Long id) {
-        Course.deleteById(id);
+    public Response deleteCourse(@PathParam("universityId") Long universityId, @PathParam("id") Long courseId) {
+        Course.deleteById(courseId);
         return Response.noContent().build();
     }
 
     @GET
-    public Response getCourses() {
-        List<Course> courses = Course.listAll();
+    @Path("/{universityId}/courses/")
+    public Response getCourses(@PathParam("universityId") Long universityId) {
+        List<Course> courses = Course.find("university.id = ?1", universityId).list();
         List<CourseResponse> response = courses
                 .stream()
-                .map((Course c) -> new CourseResponse(c.id, c.getName(), List.of()))
+                .map((Course c) -> new CourseResponse(universityId, c.id, c.getName(), List.of()))
                 .toList();
 
         return Response.ok(response).build();
     }
 
     @GET
-    @Path("/{id}")
-    public Response getCourseById(@PathParam("id") Long id) {
-        Log.info("Getting course by ID: " + id);
-        Course course = Course.findById(id);
+    @Path("/{universityId}/courses/{id}")
+    public Response getCourseById(@PathParam("universityId") Long universityId, @PathParam("id") Long courseId) {
+        Log.info("Getting University(ID=" + universityId + ") with Course(ID=" + courseId + ")");
+        Course course = Course.findById(courseId);
         if (course == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
